@@ -5,17 +5,18 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear;
 figure;
+ylim([0 1]);
 %==== TEST: Setup uncertianty parameters (try different values!) ===
-sig_ultrasonic = 0.05;
+sig_ultrasonic = 0.08;
 sig_imu = 2.5*pi/180;
-sig_enc = 0.1;
+sig_enc = 0.005;
 
 %==== Generate sigma^2 from sigma ===
 sig_ultrasonic = sig_ultrasonic^2;
 sig_imu = sig_imu^2;
 sig_enc = sig_enc^2;
 
-%==== Generate sigma^2 from sigma ===
+%==== dimension of vehicle ===
 wheel_base = 10*0.0254;
 track_width = 10.5*0.0254; 
 
@@ -34,7 +35,7 @@ measure_cov = diag([sig_ultrasonic, sig_ultrasonic, sig_ultrasonic, sig_ultrason
 
 %==== Setup initial pose vector and pose uncertainty ====
 pose = [0 ; 0.4 ; 0];
-pose_cov = diag([0.02^2, 0.02^2, 0.1^2]);
+pose_cov = diag([0.0^2, 0.02^2, 0.1^2]);
 
 %%
 %==== TODO: Setup initial landmark vector landmark[] and covariance matrix landmark_cov[] ====
@@ -71,8 +72,8 @@ x_total = x;
 tline = fgets(fid);
 while ischar(tline)
     arr = str2num(tline);
-    motion_left = arr(1)*2*3.14*6/2*0.254;
-    motion_right = arr(2)*2*3.14*6/2*0.254;
+    motion_left = arr(1)*2*3.14*6/2*0.0254;
+    motion_right = arr(2)*2*3.14*6/2*0.0254;
     
     %==== TODO: Predict Step ====
     %==== (Notice: predict state x_pre[] and covariance P_pre[] using input control data and control_cov[]) ====
@@ -108,16 +109,18 @@ while ischar(tline)
     %==== (Notice: update state x[] and covariance P[] using input measurement data and measure_cov[]) ====
     
     % Write your code here...
-    H = zeros(2*k, 15);
-%     measurement_cov = zeros(3);
     Z = [];
     Z_obs = [];
-    Z = [2*x_pre(2) + distance_left*cos(x_pre(3)) - distance_right*cos(x_pre(3));...
+    Z = [x_pre(2) + distance_left*cos(x_pre(3)) + track_width/2*cos(x_pre(3));...
+        x_pre(2) - distance_right*cos(x_pre(3)) - track_width/2*cos(x_pre(3));...
         x_pre(3) - yaw_angle];
+%     Z = [2*x_pre(2) + distance_left*cos(x_pre(3)) - distance_right*cos(x_pre(3));...
+%         x_pre(3) - yaw_angle];
 %         x_pre(1) + distance_front*cos(x_pre(3));...
 %         x_pre(1) - distance_back*cos(x_pre(3));...
         
-    Z_obs = [0.80-track_width, 0]';
+    Z_obs = [0.80; 0; 0];
+%     Z_obs = [0.80-track_width, 0]';
 %     for i = 1:k
 %         delta = [x_pre(3+2*(i-1)+1) - x_pre(1); x_pre(3+2*i) - x_pre(2)];
 %         q = delta'*delta;
@@ -138,9 +141,11 @@ while ischar(tline)
 %     D = [cos(x_pre(3)) 0 0 0 0; 0 -cos(x_pre(3)) 0 0 0; 0 0 cos(x_pre(3)) 0 0;...
 %         0 0 0 cos(x_pre(3)) 0; 0 0 0 0 1];
 
-    C = [0 2 -distance_left*sin(x_pre(3)) + distance_right*sin(x_pre(3));
+    C = [0 1 -(distance_left + track_width/2)*sin(x_pre(3));...
+        0 1 (distance_right + track_width/2)*sin(x_pre(3));...
         0 0 1];
-    D = [cos(x_pre(3)) -cos(x_pre(3)) 0 0 0;...
+    D = [cos(x_pre(3)) 0 0 0 0;...
+        0 -cos(x_pre(3)) 0 0 0;...
         0 0 0 0 -1];
     K = P_pre * C' / (C * P_pre * C' + D*measure_cov*D');
     x = x_pre + K*(Z_obs - Z);

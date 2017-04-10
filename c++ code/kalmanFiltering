@@ -1,0 +1,160 @@
+void KalmanFilter()
+	/*************************************************************************************
+	==== Define sigma ===
+	*************************************************************************************/
+	float sig_ultrasonic = 0.08;
+	float sig_imu = 2.5*pi/180;
+	float sig_enc = 0.005;
+
+	/*************************************************************************************
+	==== Generate sigma^2 from sigma ===
+	*************************************************************************************/
+	sig_ultrasonic = sig_ultrasonic^2;
+	sig_imu = sig_imu^2;
+	sig_enc = sig_enc^2;
+
+	/*************************************************************************************
+	==== dimension of vehicle ===
+	*************************************************************************************/
+	float wheel_base = 10*0.0254;
+	float track_width = 10.5*0.0254; 
+
+	/*************************************************************************************
+	==== Initialization ====
+	*************************************************************************************/
+	float control_cov[2][2] = {{sig_enc, 0}, {0, sig_enc}};
+	float measure_cov[5][5] = {{sig_ultrasonic, 0, 0, 0, 0}, {0, sig_ultrasonic, 0, 0, 0}, {0, 0, sig_ultrasonic, 0, 0}, {0, 0, 0, sig_ultrasonic, 0}, {0, 0, 0, 0, sig_imu}};
+
+	float pose[3] = {0 , 0.4 , 0};
+	float pose_cov[3][3] = {{0.0^2, 0, 0}, {0, 0.02^2, 0}, {0, 0, 0.1^2}};
+
+	/*************************************************************************************
+	==== Read measurement data ====
+	*************************************************************************************/
+	measure = ??;
+
+	float last_pose[3] = pose;
+
+	/*************************************************************************************
+	==== Read Control Input ====
+	*************************************************************************************/
+	control_input = ??;
+
+	/*************************************************************************************
+	Prediction Step
+	*************************************************************************************/
+	float motion_left = control_input[0]*2*3.14*6/2*0.0254;
+	float motion_right = control_input[1]*2*3.14*6/2*0.0254;
+
+	float relative_displacement = (motion_right - motion_left);
+	float squareRootTerm = track_width^2 - (motion_right - motion_left)^2;
+	float B[3][2] = {{cos(last_pose[2])/2, cos(last_pose[2])/2}, {sin(last_pose[2])/2, sin(last_pose[2])/2}, {-1/sqrt(squareRootTerm), 1/sqrt(squareRootTerm)}};
+
+	float pose_pre = {last_pose[0] + (motion_left + motion_right)*cos(last_pose[2])/2, last_pose[1] + (motion_left + motion_right)*sin(last_pose[2])/2, asin(relative_displacement)};
+
+	float temp[3][2];
+
+	float B_transpose[2][3];
+	Matrix.Transpose(B,2,3,B_transpose);
+
+	float pose_cov_from_control[3][3];
+
+	Matrix.Multiply(B, control_cov, 3, 2, 2, temp);
+	Matrix.Multiply(temp, B_transpose, 3, 2, 3, pose_cov_from_control);
+
+
+	float pose_cov_pre[3][3];
+	Matrix.Add(pose_cov, pose_cov_from_control, pose_cov_pre);
+
+	/*************************************************************************************
+	Correction Step
+	*************************************************************************************/
+	measure = ??;
+	distance_left = measure[0]/100;
+	distance_right = measure[1]/100;
+	yaw_angle = wrapTo180(measure[4])*pi/180;
+
+	float Z[3] = {pose_pre[1] + distance_left*cos(pose_pre[2]) + track_width/2*cos(pose_pre[2]), pose_pre[1] - distance_right*cos(pose_pre[2]) - track_width/2*cos(pose_pre[2]), pose_pre[2] - yaw_angle};
+	float Z_obs[3] = {0.8, 0, 0};
+
+	float C[3][3] = {{0, 1, -(distance_left + track_width/2)*sin(pose_pre[2])}, {0, 1, (distance_right + track_width/2)*sin(pose_pre[2])}, {0, 0, }};
+	float D[3][5] = {{cos(pose_pre[2]), 0, 0, 0, 0,}, {0, -cos(pose_pre[2]), 0, 0, 0}, {0, 0, 0, 0, -1}};
+
+	Matrix.Multiply(temp, B_transpose, 3, 2, 3, pose_cov_from_control);
+
+	/*************************************************************************************
+	Kalman Update
+	K_matrix = P_pre * C' / (C * P_pre * C' + D*measure_cov*D');
+	*************************************************************************************/
+
+	float K_matrix[3][3];
+	KalmanFilterConstant(3, 3, 5, C, D, pose_cov_pre, measure_cov, float* K_matrix)
+
+	/*************************************************************************************
+	Update Pose
+	x = x_pre + K*(Z_obs - Z);
+	*************************************************************************************/
+	float pose_update[3];
+	float pose_final[3];
+	float error[3];
+
+	Matrix.Subtract(Z_obs, Z, 3, 1, error);
+	Matrix.Multiply(K_matrix, error, 3, 3, 1, pose_update);
+	Matrix.Add(pose_pre, pose_update, 3, 1, pose_final);
+
+	/*************************************************************************************
+	Update Pose_Covariance
+	P = (eye(3) - K*C)*P_pre;
+	*************************************************************************************/
+	float identity[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+
+	float K_multiply_C[3][3];
+	Matrix.Multiply(K_matrix, C, 3, 3, 3, K_multiply_C);
+
+	float multiplier[3][3];
+	Matrix.Subtract(identity, K_multiply_C, 3, 3, multiplier);
+
+	float pose_final[3][3];
+	Matrix.Multiply(multiplier, pose_cov_pre, 3, 3, 3, pose_final);
+
+}
+
+void KalmanFilterConstant(int a, int b, int c, float* C, float* D, float* pose_cov_pre, float* measure_cov, float* K_matrix)
+{
+	// C is a X b
+	// D is a X c
+	// pose_cov_pre is b X b
+	// measure_cov is c X c
+
+	// Using K_matrix = P_pre * C' / (C * P_pre * C' + D*measure_cov*D');
+	// or, K_matrix = P_pre*C' * inverseTermEKF
+	// where inverseTermEKF = inverse(firstTerm + secondTerm);
+	// firstTerm = C * P_pre * C';
+	// secondTerm = D*measure_cov*D';
+
+	float C_transpose[b][a];
+	Matrix.Transpose(C, a, b, C_transpose);
+
+	float D_transpose[c][a];
+	Matrix.Transpose(D, a, c, D_transpose);
+
+	float C_multiply_P_cov_pre[a][b];
+	float firstTerm[a][a];
+
+	Matrix.Multiply(C, pose_cov_pre, a, b, b, C_multiply_P_cov_pre); // a X b
+	Matrix.Multiply(C_multiply_P_cov_pre, C_transpose, a, b, a, firstTerm); // a X a
+
+	float D_multiply_measure_cov[a][c];
+	float secondTerm[a][a];
+
+	Matrix.Multiply(D, measure_cov, a, c, c, D_multiply_measure_cov); // a X c
+	Matrix.Multiply(D_multiply_measure_cov, D_transpose, a, c, a, firstTerm); // a X a
+
+	float inverseTermEKF[a][a];
+	Matrix.Add(firstTerm, secondTerm, a, a, inverseTermEKF);
+	Matrix.Invert(inverseTermEKF, a);
+
+	float K_matrix[b][a];
+	Matrix.Multiply(pose_cov_pre, C_transpose, b, b, a, P_cov_pre_multiply_C_transpose); // b X a
+	Matrix.Multiply(P_cov_pre_multiply_C_transpose, inverseTermEKF, b, a, a, K_matrix); // b X a
+}
