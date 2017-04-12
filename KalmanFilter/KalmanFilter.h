@@ -23,15 +23,21 @@ class KalmanFilter
 
     void printPose();
 
+    void reset();
+
 
     private:
     const float identity[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     float control_cov[2][2]; // initialized to zero
     float measure_cov_full[5][5];
+    float pose_initial[3];
+    float pose_cov_initial[3][3];
+
     float (&control_input)[2];
     float (&measure)[5];
     float (&pose)[3];
     float (&pose_cov)[3][3];
+
     float wheel_base;
     float track_width;
     float wheel_radius;

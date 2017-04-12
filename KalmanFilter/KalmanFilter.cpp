@@ -10,7 +10,10 @@
 
 KalmanFilter::KalmanFilter(float (&pose_)[3], float (&pose_cov_)[3][3], float (&measure_)[5], float (&control_input_)[2])
                           : pose(pose_), pose_cov(pose_cov_), measure(measure_), control_input(control_input_) 
-{ }
+{ 
+    memcpy(pose_initial, pose, sizeof(float) * 3);
+    memcpy(pose_cov_initial, pose_cov, sizeof(float) * 3 * 3);
+}
 
 void KalmanFilter::init(float sig_ultrasonic, float sig_imu, float sig_enc,
         float wheel_base_, float track_width_, float wheel_radius_, float margins_)
@@ -48,6 +51,12 @@ float KalmanFilter::degToRad(float angle)
 void KalmanFilter::printPose()
 {
     Matrix.Print(pose, 1, 3, "pose");
+}
+
+void KalmanFilter::reset()
+{
+    memcpy(pose, pose_initial, sizeof(float) * 3);
+    memcpy(pose_cov, pose_cov_initial, sizeof(float) * 3 * 3);
 }
 
 void KalmanFilter::update(bool (&sensor_flags)[5])
@@ -91,7 +100,7 @@ void KalmanFilter::update(bool (&sensor_flags)[5])
     float D_full[5][5] = {{cos(pose_pre[2]), 0, 0, 0, 0}, 
                           {0, -cos(pose_pre[2]), 0, 0, 0}, 
                           {0, 0, -cos(pose_pre[2]), 0, 0}, 
-                          {0, 0, 0, cos(pose_pre[2]), 0},  // TODO check this
+                          {0, 0, 0, cos(pose_pre[2]), 0},
                           {0, 0, 0, 0, -1.0}};
     float C_full[5][3] = {{0, 1.0, -(measure[0] + (track_width / 2.0)) * sin(pose_pre[2])}, 
                           {0, 1.0, (measure[1] + (track_width / 2.0)) * sin(pose_pre[2])}, 

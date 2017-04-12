@@ -38,7 +38,7 @@ float leftWheelRevsPrevious;
 float rightWheelRevsPrevious;
 bool active_sensors[5] = {false, false, false, false, false};
 
-float pose[3] = {0 , 0.4 , 0};
+float pose[3] = {0 , 0.5 , 0};
 float pose_cov[3][3] = {{sq(0.0), 0, 0}, 
                         {0, sq(0.02), 0}, 
                         {0, 0, sq(0.1)}};
@@ -77,7 +77,7 @@ void setup()
     }
     
     // initialize heading
-    yaw = IMU.readEulerHeading();
+    yaw = ekf.degToRad( IMU.readEulerHeading() );
     pathHeading = yaw;
 
     double K = 1000.0 / (240 / (0.1524 * 3.14159));
@@ -104,7 +104,7 @@ void setup()
     float wheel_base = 10.0 * 0.0254;
     float margins = 4.0 * 0.0254;
     float track_width = 10.5 * 0.0254; 
-    float wheel_radius = 6.0 / 2.0 * 0.0254;
+    float wheel_radius = 0.0254 * 6.0 / 2.0;
     ekf.init(sig_ultrasonic, sig_imu, sig_enc, wheel_base, track_width, wheel_radius, margins);
 
     delay(10);
@@ -166,9 +166,7 @@ void updateSensorReadings()
     IMU.updateEuler();     
     IMU.updateCalibStatus(); // Update the Calibration Status
     IMU.updateAccel();
-    yaw = IMU.readEulerHeading();
-    yaw = IMU.readEulerHeading();
-    yaw = ekf.degToRad(yaw);
+    yaw = ekf.degToRad( IMU.readEulerHeading() );
       
     zAccel = IMU.readAccelZ();
     
@@ -210,6 +208,16 @@ void kalmanUpdate()
     measure[4] = yaw;
     
     ekf.update(active_sensors);
+}
+
+void reset()
+{
+    ekf.reset();
+
+    // reset IMU?
+    // reset encoders?
+    pathHeading = yaw;
+
 }
 
 //make sure motors connected
