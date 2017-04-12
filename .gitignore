@@ -32,3 +32,6 @@
 *.avi
 *.mp4
 *.MPEG
+
+.DS_Store
+
