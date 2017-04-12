@@ -62,7 +62,7 @@ void KalmanFilter::update(bool (&sensor_flags)[5])
     float squareRootTerm = sq(track_width) - sq(relative_displacement);
     float B[3][2] = {{cos(pose[2]) / 2.0, cos(pose[2]) / 2.0}, 
                      {sin(pose[2]) / 2.0, sin(pose[2]) / 2.0}, 
-                     {-1.0 / sqrt(squareRootTerm), 1.0 / sqrt(squareRootTerm)}};  // TODO: sq -> sqrt
+                     {-1.0 / sqrt(squareRootTerm), 1.0 / sqrt(squareRootTerm)}};
 
     float pose_pre[3] = {pose[0] + ((motion_left + motion_right) * cos(pose[2]) / 2.0), 
                          pose[1] + ((motion_left + motion_right) * sin(pose[2]) / 2.0), 
@@ -83,15 +83,15 @@ void KalmanFilter::update(bool (&sensor_flags)[5])
   
   float Z_full[5] = {pose_pre[1] + (measure[0] * cos(pose_pre[2])) + (cos(pose_pre[2]) * track_width / 2.0), 
                      pose_pre[1] - (measure[1] * cos(pose_pre[2])) - (cos(pose_pre[2]) * track_width / 2.0), 
-                     pose_pre[0] - (measure[3] + margins) * cos(pose_pre[2]),
-                     pose_pre[0] + (measure[2] + wheel_base) * cos(pose_pre[2]), 
+                     pose_pre[0] - (measure[2] + margins) * cos(pose_pre[2]),
+                     pose_pre[0] + (measure[3] + wheel_base) * cos(pose_pre[2]), 
                      pose_pre[2] - measure[4]};
   
     float Z_obs_full[5] = {1.0, 0, 0, 8.0, 0};
     float D_full[5][5] = {{cos(pose_pre[2]), 0, 0, 0, 0}, 
                           {0, -cos(pose_pre[2]), 0, 0, 0}, 
-                          {0, 0, 0, -cos(pose_pre[2]), 0}, 
-                          {0, 0, cos(pose_pre[2]), 0, 0},  // TODO check this
+                          {0, 0, -cos(pose_pre[2]), 0, 0}, 
+                          {0, 0, 0, cos(pose_pre[2]), 0},  // TODO check this
                           {0, 0, 0, 0, -1.0}};
     float C_full[5][3] = {{0, 1.0, -(measure[0] + (track_width / 2.0)) * sin(pose_pre[2])}, 
                           {0, 1.0, (measure[1] + (track_width / 2.0)) * sin(pose_pre[2])}, 

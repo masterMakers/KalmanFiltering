@@ -205,8 +205,8 @@ void kalmanUpdate()
 
     measure[0] = distances[LEFT_SIDE] / 100.0;
     measure[1] = distances[RIGHT_SIDE] / 100.0;
-    measure[2] = distances[FRONT] / 100.0;
-    measure[3] = distances[BACK] / 100.0;
+    measure[2] = distances[BACK] / 100.0;
+    measure[3] = distances[FRONT] / 100.0;
     measure[4] = yaw;
     
     ekf.update(active_sensors);
