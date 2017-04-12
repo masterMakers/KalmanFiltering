@@ -184,7 +184,7 @@ void updateSensorReadings()
 
 void hallFollowing()
 {
-    currentY = last_pose[1];
+    currentY = pose[1];
     pidHall.Compute();
     desiredVelL = nominalForwardSpeed;
     desiredVelR = nominalForwardSpeed;
@@ -224,4 +224,3 @@ void stopIfFault()
         while(1);
     }
 }
-

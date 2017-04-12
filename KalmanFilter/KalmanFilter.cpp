@@ -6,14 +6,14 @@
  * Depends on the MatrixMath library
  **********************************************************************************************/
 
+#include <KalmanFilter.h>
+
 KalmanFilter::KalmanFilter(float (&pose_)[3], float (&pose_cov_)[3][3], float (&measure_)[5], float (&control_input_)[2])
                           : pose(pose_), pose_cov(pose_cov_), measure(measure_), control_input(control_input_) 
 { }
 
 void KalmanFilter::init(float sig_ultrasonic, float sig_imu, float sig_enc,
         float wheel_base_, float track_width_, float wheel_radius_, float margins_)
-        : wheel_base(wheel_base_), track_width(track_width_), wheel_radius(wheel_radius_), margins(margins_)
-        
 {
     sig_ultrasonic = sq(sig_ultrasonic);
     sig_imu = sq(sig_imu);
@@ -27,6 +27,11 @@ void KalmanFilter::init(float sig_ultrasonic, float sig_imu, float sig_enc,
     measure_cov_full[2][2] = sig_ultrasonic;
     measure_cov_full[3][3] = sig_ultrasonic;
     measure_cov_full[4][4] = sig_imu;
+
+    wheel_base = wheel_base_;
+    track_width = track_width_;
+    wheel_radius = wheel_radius_;
+    margins = margins_;
 }
 
 float KalmanFilter::degToRad(float angle)
@@ -110,13 +115,13 @@ void KalmanFilter::update(bool (&sensor_flags)[5])
     // D, measure_cov -> cut rows and cols
     int row = 0;
     for (int i = 0; i < 5; i++) { // row
-        if (!flag_active_sensors[i]) {
+        if (!sensor_flags[i]) {
             continue;
         }
 
         int col = 0;
         for(int j = 0; j < 5; j++) { // col
-            if (flag_active_sensors[j]) {
+            if (sensor_flags[j]) {
                 D[row][col] = D_full[i][j];
                 measure_cov[row][col] = measure_cov_full[i][j];
                 col++;
