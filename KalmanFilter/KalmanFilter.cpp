@@ -67,15 +67,15 @@ void KalmanFilter::update(bool (&sensor_flags)[5])
     float motion_left = control_input[0] * 2.0 * M_PI * 6.0 / 2.0 * 0.0254;
     float motion_right = control_input[1] * 2.0 * M_PI * 6.0 / 2.0 * 0.0254;
 
-    float relative_displacement = motion_right - motion_left;
-    float squareRootTerm = sq(track_width) - sq(relative_displacement);
+    float relative_displacement = (motion_right - motion_left) / track_width;
+    float squareRootTerm = sq(track_width) - sq((motion_right - motion_left));
     float B[3][2] = {{cos(pose[2]) / 2.0, cos(pose[2]) / 2.0}, 
                      {sin(pose[2]) / 2.0, sin(pose[2]) / 2.0}, 
                      {-1.0 / sqrt(squareRootTerm), 1.0 / sqrt(squareRootTerm)}};
 
     float pose_pre[3] = {pose[0] + ((motion_left + motion_right) * cos(pose[2]) / 2.0), 
                          pose[1] + ((motion_left + motion_right) * sin(pose[2]) / 2.0), 
-                         asin(relative_displacement)};
+                         pose[2] + asin(relative_displacement)};
 
     float B_transpose[2][3];
     Matrix.Transpose((float*)B, 2, 3, (float*)B_transpose);
@@ -99,13 +99,13 @@ void KalmanFilter::update(bool (&sensor_flags)[5])
     float Z_obs_full[5] = {1.0, 0, 0, 8.0, 0};
     float D_full[5][5] = {{cos(pose_pre[2]), 0, 0, 0, 0}, 
                           {0, -cos(pose_pre[2]), 0, 0, 0}, 
-                          {0, 0, -cos(pose_pre[2]), 0, 0}, 
-                          {0, 0, 0, cos(pose_pre[2]), 0},
+                          {0, 0, 0, -cos(pose_pre[2]), 0}, 
+                          {0, 0, cos(pose_pre[2]), 0, 0},
                           {0, 0, 0, 0, -1.0}};
     float C_full[5][3] = {{0, 1.0, -(measure[0] + (track_width / 2.0)) * sin(pose_pre[2])}, 
                           {0, 1.0, (measure[1] + (track_width / 2.0)) * sin(pose_pre[2])}, 
-                          {1.0, 0, (measure[3] + margins) * sin(pose_pre[2])}, 
-                          {1.0, 0, -(measure[2] + wheel_base) * sin(pose_pre[2])}, 
+                          {1.0, 0, (measure[2] + margins) * sin(pose_pre[2])}, 
+                          {1.0, 0, -(measure[3] + wheel_base) * sin(pose_pre[2])}, 
                           {0, 0, 1.0}};
 
     int num_active = 0;

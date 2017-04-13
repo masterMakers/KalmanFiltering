@@ -197,8 +197,10 @@ void hallFollowing()
 void kalmanUpdate()
 {
     for (int i = 0; i < 2; i++) {
-        active_sensors[i] = (distances[i] < 130 && distances[i] > 0.5 && i == currDistSensor);
+        active_sensors[i] = (distances[i] < 130 && distances[i] > 0.5);// && i == currDistSensor);
     }
+    active_sensors[2] = false;
+    active_sensors[3] = false;
     active_sensors[4] = true;
 
     measure[0] = distances[LEFT_SIDE] / 100.0;
